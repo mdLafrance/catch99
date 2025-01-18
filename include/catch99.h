@@ -158,7 +158,7 @@ static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
   }
 }
 
-void run_tests() {
+int run_tests() {
   clock_t t0 = clock();
 
   const int width = 40;
@@ -224,6 +224,7 @@ void run_tests() {
   if (!tests_failed) {
     printf("\nAll tests %spassed %s%s%s\n", CNN_TERM_GREEN, CNN_TERM_GRAY,
            elapsed_str, CNN_TERM_NC);
+    return 0;
   } else {
     printf(
         "%s-------------------------------------------------------------%s\n",
@@ -267,13 +268,11 @@ void run_tests() {
     printf("\n%d tests in %d cases %sfailed%s (%s elapsed)%s  \n", tests_failed,
            test_cases_failed, CNN_TERM_RED, CNN_TERM_GRAY, elapsed_str,
            CNN_TERM_NC);
+    return -1;
   }
 }
 
-int main(void) {
-  run_tests();
-  return 0;
-}
+int main(void) { return run_tests(); }
 #endif // CNN_TEST_MAIN
 
 #endif // CATCH99

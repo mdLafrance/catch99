@@ -36,6 +36,7 @@
 #define CNN_TERM_NC ""
 #define CNN_TERM_UNDERLINE ""
 #define CNN_TERM_BOLD ""
+#define CNN_TERM_STRIKE ""
 #else
 #define CNN_TERM_RED "\033[31m"
 #define CNN_TERM_GREEN "\033[32m"
@@ -43,11 +44,13 @@
 #define CNN_TERM_NC "\033[0m"
 #define CNN_TERM_UNDERLINE "\033[4m"
 #define CNN_TERM_BOLD "\033[1m"
+#define CNN_TERM_STRIKE "\e[9m"
 #endif
 
 // =================== Data types ======================= //
 
 typedef enum { REQUIRE, CHECK } TestType;
+typedef enum { PASSED, FAILED, SKIPPED } CaseStatus;
 
 /// A single test. Remembers the invocation details and outcome for report
 /// later.
@@ -61,7 +64,8 @@ typedef struct Test {
 /// A single test case. A test case organizes multiple tests that are logically
 /// related.
 typedef struct TestCase {
-  char failed;
+  CaseStatus status;
+  const char *skip_message;
   size_t lineno;
   const char *filename;
   const char *description;
@@ -73,10 +77,12 @@ typedef struct TestCase {
 
 // =================== Forward declares ================= //
 
-static void _cnn_format_datetime_str(char *restrict out_str);
-static void _cnn_format_elapsed_string(double dt, char *restrict out_str);
-static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
-                                         const char *restrict fn_name);
+static void _cnn_format_datetime_str(char *out_str);
+static void _cnn_format_elapsed_string(double dt, char *out_str);
+static TestCase *_cnn_get_current_case(const char *filename,
+                                       const char *fn_name);
+static void _cnn_register_test_with_case(Test t, const char *file_name,
+                                         const char *fn_name);
 
 // =================== Macros =========================== //
 #define TEST_CASE(desc)                                                        \
@@ -116,6 +122,17 @@ static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
     }                                                                          \
   } while (0);
 
+#define SKIP(msg)                                                              \
+  do {                                                                         \
+    TestCase *__cnn_current_test_case =                                        \
+        _cnn_get_current_case(__FILE__, __func__);                             \
+                                                                               \
+    __cnn_current_test_case->status = SKIPPED;                                 \
+    __cnn_current_test_case->skip_message = msg;                               \
+                                                                               \
+    return;                                                                    \
+  } while (0);
+
 // =================== Guarded impls ==================== //
 
 #ifndef CATCH99_MAIN
@@ -142,19 +159,32 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
   sprintf(out_str, "%d:%02d:%02d", hours, minutes, seconds);
 }
 
-static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
-                                         const char *restrict fn_name) {
+static TestCase *_cnn_get_current_case(const char *restrict file_name,
+                                       const char *restrict fn_name) {
   for (int i = 0; i < _cnn_num_test_cases; i++) {
     TestCase *__cnn_test_case = &_cnn_test_cases[i];
+
     if ((strcmp(__cnn_test_case->case_fn_name, fn_name) == 0) &&
         (strcmp(__cnn_test_case->filename, file_name) == 0)) {
-      if (__cnn_test_case->num_tests >= CATCH99_MAX_TESTS) {
-        fprintf(stderr, "MAXIMUM TESTS EXCEEDED FOR CASE %s\n",
-                __cnn_test_case->description);
-        exit(1);
-      }
-      __cnn_test_case->tests[__cnn_test_case->num_tests++] = t;
+
+      return __cnn_test_case;
     }
+  }
+
+  return NULL;
+}
+
+static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
+                                         const char *restrict fn_name) {
+  TestCase *test_case = _cnn_get_current_case(file_name, fn_name);
+
+  if (test_case) {
+    if (test_case->num_tests >= CATCH99_MAX_TESTS) {
+      fprintf(stderr, "MAXIMUM TESTS EXCEEDED FOR CASE %s\n",
+              test_case->description);
+      exit(1);
+    }
+    test_case->tests[test_case->num_tests++] = t;
   }
 }
 
@@ -173,10 +203,15 @@ int run_tests() {
          CNN_TERM_GRAY, CNN_TERM_NC);
 
   char tests_failed = 0;
-  char test_cases_failed = 0;
+  char cases_failed = 0;
 
+  // Iterate over cases
   for (int i = 0; i < _cnn_num_test_cases; i++) {
     TestCase *current_case = &_cnn_test_cases[i];
+
+    current_case->case_fn();
+
+    char case_skipped = current_case->status == SKIPPED;
 
     // Truncate description string
     int desc_len = strlen(current_case->description);
@@ -188,13 +223,24 @@ int run_tests() {
 
     // Print intro string for this case
     int diff = width - strlen(truncated_desc);
-    printf("%s[%3d/%3zu]%s %s", CNN_TERM_GRAY, i + 1, _cnn_num_test_cases,
-           CNN_TERM_NC, truncated_desc);
-    for (int i = 0; i < diff; i++) {
-      printf("%s.%s", CNN_TERM_GRAY, CNN_TERM_NC);
+
+    // Different message formatting if skipped
+    if (case_skipped) {
+      printf("%s[%3d/%3zu] %s%s%s %s(Skipped)%s %s\n", CNN_TERM_GRAY, i + 1,
+             _cnn_num_test_cases, CNN_TERM_STRIKE, truncated_desc, CNN_TERM_NC,
+             CNN_TERM_GRAY, CNN_TERM_NC, current_case->skip_message);
+
+    } else {
+      printf("%s[%3d/%3zu]%s %s", CNN_TERM_GRAY, i + 1, _cnn_num_test_cases,
+             CNN_TERM_NC, truncated_desc);
+      for (int i = 0; i < diff; i++) {
+        printf("%s.%s", CNN_TERM_GRAY, CNN_TERM_NC);
+      }
     }
 
-    current_case->case_fn();
+    if (case_skipped) {
+      continue;
+    }
 
     for (int t = 0; t < current_case->num_tests; t++) {
       Test test = current_case->tests[t];
@@ -205,9 +251,9 @@ int run_tests() {
         ++tests_failed;
 
         // If this is the first test failed in this case, mark it down
-        if (!current_case->failed) {
-          ++test_cases_failed;
-          current_case->failed = 1;
+        if (!(current_case->status == FAILED)) {
+          ++cases_failed;
+          current_case->status = FAILED;
         }
 
         printf("%sE%s", CNN_TERM_RED, CNN_TERM_NC);
@@ -233,7 +279,7 @@ int run_tests() {
     for (int i = 0; i < _cnn_num_test_cases; i++) {
       TestCase *current_case = &_cnn_test_cases[i];
 
-      if (!current_case->failed) {
+      if (!(current_case->status == FAILED)) {
         continue;
       }
 
@@ -266,8 +312,7 @@ int run_tests() {
     }
 
     printf("\n%d tests in %d cases %sfailed%s (%s elapsed)%s  \n", tests_failed,
-           test_cases_failed, CNN_TERM_RED, CNN_TERM_GRAY, elapsed_str,
-           CNN_TERM_NC);
+           cases_failed, CNN_TERM_RED, CNN_TERM_GRAY, elapsed_str, CNN_TERM_NC);
     return -1;
   }
 }

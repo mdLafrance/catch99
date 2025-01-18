@@ -1,6 +1,7 @@
-#ifndef CNN_TEST
-#define CNN_TEST
+#ifndef CATCH99
+#define CATCH99
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 #include <time.h>
 
 // =================== Constants ======================== //
+
 #ifndef CATCH99_MAX_TEST_CASES
 #define CATCH99_MAX_TEST_CASES 512
 #endif
@@ -17,6 +19,7 @@
 #endif
 
 // =================== Utility Macros =================== //
+
 #define STR(x) #x
 #define STRINGIFY(x) STR(x)
 #define CONCAT(a, b) a##b
@@ -31,21 +34,28 @@
 #define CNN_TERM_GREEN ""
 #define CNN_TERM_GRAY ""
 #define CNN_TERM_NC ""
+#define CNN_TERM_UNDERLINE ""
+#define CNN_TERM_BOLD ""
 #else
 #define CNN_TERM_RED "\033[31m"
 #define CNN_TERM_GREEN "\033[32m"
 #define CNN_TERM_GRAY "\033[90m"
 #define CNN_TERM_NC "\033[0m"
 #define CNN_TERM_UNDERLINE "\033[4m"
+#define CNN_TERM_BOLD "\033[1m"
 #endif
 
 // =================== Data types ======================= //
+
+typedef enum { REQUIRE, CHECK } TestType;
+
 /// A single test. Remembers the invocation details and outcome for report
 /// later.
 typedef struct Test {
   size_t lineno;
   const char *text;
   char passed;
+  TestType test_type;
 } Test;
 
 /// A single test case. A test case organizes multiple tests that are logically
@@ -65,8 +75,10 @@ typedef struct TestCase {
 
 static void _cnn_format_datetime_str(char *restrict out_str);
 static void _cnn_format_elapsed_string(double dt, char *restrict out_str);
+static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
+                                         const char *restrict fn_name);
 
-// =================== Test Macros ====================== //
+// =================== Macros =========================== //
 #define TEST_CASE(desc)                                                        \
   static void CASE_NAME()(void);                                               \
   __attribute__((constructor)) static void CASE_REGISTER_NAME()(void) {        \
@@ -86,28 +98,27 @@ static void _cnn_format_elapsed_string(double dt, char *restrict out_str);
                                                                                \
   static void CASE_NAME()()
 
+#define CHECK(p)                                                               \
+  do {                                                                         \
+    struct Test t = {                                                          \
+        .lineno = __LINE__, .text = #p, .passed = p, .test_type = CHECK};      \
+    _cnn_register_test_with_case(t, __FILE__, __func__);                       \
+  } while (0);
+
 #define REQUIRE(p)                                                             \
   do {                                                                         \
-    struct Test t = {.lineno = __LINE__, .text = #p, .passed = p};             \
-    const char *__cnn_current_case_fn = __func__;                              \
+    struct Test t = {                                                          \
+        .lineno = __LINE__, .text = #p, .passed = p, .test_type = REQUIRE};    \
+    _cnn_register_test_with_case(t, __FILE__, __func__);                       \
                                                                                \
-    for (int i = 0; i < _cnn_num_test_cases; i++) {                            \
-      TestCase *__cnn_test_case = &_cnn_test_cases[i];                         \
-      if ((strcmp(__cnn_test_case->case_fn_name, __cnn_current_case_fn) ==     \
-           0) &&                                                               \
-          (strcmp(__cnn_test_case->filename, __FILE__) == 0)) {                \
-        if (__cnn_test_case->num_tests >= CATCH99_MAX_TESTS) {                 \
-          fprintf(stderr, "MAXIMUM TESTS EXCEEDED FOR CASE %s\n",              \
-                  __cnn_test_case->description);                               \
-          exit(1);                                                             \
-        }                                                                      \
-        __cnn_test_case->tests[__cnn_test_case->num_tests++] = t;              \
-      }                                                                        \
+    if (!(p)) {                                                                \
+      return;                                                                  \
     }                                                                          \
   } while (0);
 
 // =================== Guarded impls ==================== //
-#ifndef CATCH99_CONFIG_MAIN
+
+#ifndef CATCH99_MAIN
 extern TestCase _cnn_test_cases[CATCH99_MAX_TEST_CASES];
 extern size_t _cnn_num_test_cases;
 #else
@@ -129,6 +140,22 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
   int seconds = (int)(dt - (hours * 3600) - (minutes * 60));
 
   sprintf(out_str, "%d:%02d:%02d", hours, minutes, seconds);
+}
+
+static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
+                                         const char *restrict fn_name) {
+  for (int i = 0; i < _cnn_num_test_cases; i++) {
+    TestCase *__cnn_test_case = &_cnn_test_cases[i];
+    if ((strcmp(__cnn_test_case->case_fn_name, fn_name) == 0) &&
+        (strcmp(__cnn_test_case->filename, file_name) == 0)) {
+      if (__cnn_test_case->num_tests >= CATCH99_MAX_TESTS) {
+        fprintf(stderr, "MAXIMUM TESTS EXCEEDED FOR CASE %s\n",
+                __cnn_test_case->description);
+        exit(1);
+      }
+      __cnn_test_case->tests[__cnn_test_case->num_tests++] = t;
+    }
+  }
 }
 
 void run_tests() {
@@ -209,7 +236,8 @@ void run_tests() {
         continue;
       }
 
-      printf("\n%s\n", current_case->description);
+      printf("\n%s%s%s\n", CNN_TERM_BOLD, current_case->description,
+             CNN_TERM_NC);
       printf("%s%s:%zu%s\n\n", CNN_TERM_GRAY, current_case->filename,
              current_case->lineno, CNN_TERM_NC);
 
@@ -217,8 +245,17 @@ void run_tests() {
         Test test = current_case->tests[t];
 
         if (!test.passed) {
-          printf("%sFAILED:%s  REQUIRE(%s)\n", CNN_TERM_RED, CNN_TERM_NC,
-                 test.text);
+          const char *test_type_str;
+          switch (test.test_type) {
+          case CHECK:
+            test_type_str = "CHECK";
+            break;
+          case REQUIRE:
+            test_type_str = "REQUIRE";
+            break;
+          }
+          printf("%sFAILED:%s  %s(%s)\n", CNN_TERM_RED, CNN_TERM_NC,
+                 test_type_str, test.text);
         }
       }
 
@@ -227,7 +264,7 @@ void run_tests() {
              CNN_TERM_GRAY, CNN_TERM_NC);
     }
 
-    printf("\n%d tests in %d cases %sfailed%s %s%s \n", tests_failed,
+    printf("\n%d tests in %d cases %sfailed%s (%s elapsed)%s  \n", tests_failed,
            test_cases_failed, CNN_TERM_RED, CNN_TERM_GRAY, elapsed_str,
            CNN_TERM_NC);
   }
@@ -239,4 +276,4 @@ int main(void) {
 }
 #endif // CNN_TEST_MAIN
 
-#endif // CNN_TEST
+#endif // CATCH99

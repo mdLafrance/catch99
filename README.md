@@ -57,6 +57,7 @@ Maybe I'll turn this into something more substantial in the future, but for now 
 - [x] CHECK and REQUIRE
 - [x] Skip clause
 - [x] Pretty printing
+- [ ] Trap stdout and stderr
 - [ ] Case labels
 - [ ] Setup/teardown hooks
 - [ ] Throws clauses

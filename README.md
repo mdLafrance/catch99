@@ -31,7 +31,9 @@ Single header libraries just dont make sense to implement in C. You can do more 
 - c++ inlines dont require external linkage
 - c++ has lambdas (this is more directly related to implementing something like Catch2)
 
-Without those, you have to rely on complicated macros - not something conducive to writing something complex.
+Without those, you have to rely on complicated macros - not something conducive to writing something complex. 
+
+Maybe I'll turn this into something more substantial in the future, but for now this is enough for my use case.
 
 ### TODO
 - [x] CHECK and REQUIRE

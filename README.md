@@ -35,13 +35,13 @@ Catch99 will respect the following defines:
 - `CATCH99_TERM_WIDTH` - if defined (as a number), catch will use this value as the terminal width. Otherwise, the terminal width will be queried at runtime with ioctl.
 
 ### A note about implementation
-Single header libraries just dont make sense to implement in C. You can do more easily in C++ because:
+Single header libraries just dont make sense to implement in C. You can do it more sanely in C++ because:
 - c++ inlines dont require external linkage
 - c++ has lambdas (this is more directly related to implementing something like Catch2)
 
 Without those, you have to rely on complicated macros - not something conducive to writing something complex. 
 
-Maybe I'll turn this into something more substantial in the future, but for now this is enough for my use case.
+Maybe I'll turn this into something more substantial in the future, but for now a janky header file is enough for my use case.
 
 ### TODO
 - [x] CHECK and REQUIRE

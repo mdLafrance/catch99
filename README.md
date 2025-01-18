@@ -15,7 +15,9 @@ Like with Catch2, simply import the header and start using the macros.
 
 #include "catch99.h"
 
-TEST_CASE("Test tests") {
+#include <foo.h>
+
+TEST_CASE("Tests addition") {
   CHECK(1 == 1);
   CHECK(2 == 2);
   REQUIRE(1 == 3);
@@ -55,5 +57,7 @@ Maybe I'll turn this into something more substantial in the future, but for now 
 - [x] CHECK and REQUIRE
 - [x] Skip clause
 - [x] Pretty printing
+- [ ] Case labels
+- [ ] Setup/teardown hooks
 - [ ] Throws clauses
 - [ ] Benchmarking

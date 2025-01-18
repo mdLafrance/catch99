@@ -370,8 +370,17 @@ int run_tests() {
       _cnn_print_rule('-', width);
     }
 
-    printf("\n%d tests in %d cases %sfailed%s (%s elapsed)%s  \n", tests_failed,
-           cases_failed, CNN_TERM_RED, CNN_TERM_GRAY, elapsed_str, CNN_TERM_NC);
+    char lhs[128];
+    sprintf(lhs, "%d tests in %d cases %sfailed%s", tests_failed, cases_failed,
+            CNN_TERM_RED, CNN_TERM_GRAY);
+
+    char rhs[128];
+    sprintf(rhs, "%s(%s elapsed)%s", CNN_TERM_GRAY, elapsed_str, CNN_TERM_NC);
+
+    printf("\n");
+    _cnn_print_spaced_text(lhs, rhs, ' ', width);
+    printf("\n");
+
     return -1;
   }
 }

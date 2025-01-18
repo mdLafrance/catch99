@@ -1,12 +1,10 @@
 # Catch99
 > A subset of Catch2 for C99
 
-This project aims to reimplement some core features of the excellent Catch2 unit testing framework for C99, because I was writing something else in C and was missing having Catch.
-
-I'm not aiming for a full port or anything fancy - I just want a working subset of the features I use most.
+This project aims to reimplement some core features of the excellent Catch2 unit testing framework for C99 - because I was writing something else in C and was missing having Catch.
 
 ## Usage
-This is a *single header file* of C99 with no dependencies - just put it somewhere it can be included.
+This is a **single header file** of C99 with no dependencies - just put it somewhere it can be included.
 
 Like with Catch2, simply import the header and start using the macros.
 
@@ -25,6 +23,7 @@ TEST_CASE("Test tests") {
 ```
 
 That's it! In the TU with `CATCH99_MAIN` defined, a `main()` function is automatically generated that discovers, runs, and reports on all tests in the source.  
+
 See the included [cmake](./CMakeLists.txt) file for a recipe on creating a test binary to run.
 
 ### A note about implementation
@@ -32,7 +31,7 @@ Single header libraries just dont make sense to implement in C. You can do more 
 - c++ inlines dont require external linkage
 - c++ has lambdas (this is more directly related to implementing something like Catch2)
 
-Without those, you have to rely on complicated macros - not something conducive to writing anything too complex.
+Without those, you have to rely on complicated macros - not something conducive to writing something complex.
 
 ### TODO
 - [x] CHECK and REQUIRE

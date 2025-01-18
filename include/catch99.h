@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 // =================== Constants ======================== //
 
@@ -81,8 +81,9 @@ static void _cnn_format_datetime_str(char *out_str);
 static void _cnn_format_elapsed_string(double dt, char *out_str);
 static TestCase *_cnn_get_current_case(const char *filename,
                                        const char *fn_name);
-static void _cnn_register_test_with_case(Test t, const char *file_name,
-                                         const char *fn_name);
+void _cnn_register_test_with_case(Test t, const char *file_name,
+                                  const char *fn_name);
+static int _cnn_get_term_width();
 
 // =================== Macros =========================== //
 #define TEST_CASE(desc)                                                        \
@@ -139,6 +140,9 @@ static void _cnn_register_test_with_case(Test t, const char *file_name,
 extern TestCase _cnn_test_cases[CATCH99_MAX_TEST_CASES];
 extern size_t _cnn_num_test_cases;
 #else
+#include <string.h>
+#include <time.h>
+
 TestCase _cnn_test_cases[CATCH99_MAX_TEST_CASES];
 size_t _cnn_num_test_cases = 0;
 
@@ -162,20 +166,20 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
 static TestCase *_cnn_get_current_case(const char *restrict file_name,
                                        const char *restrict fn_name) {
   for (int i = 0; i < _cnn_num_test_cases; i++) {
-    TestCase *__cnn_test_case = &_cnn_test_cases[i];
+    TestCase *test_case = &_cnn_test_cases[i];
 
-    if ((strcmp(__cnn_test_case->case_fn_name, fn_name) == 0) &&
-        (strcmp(__cnn_test_case->filename, file_name) == 0)) {
+    if ((strcmp(test_case->case_fn_name, fn_name) == 0) &&
+        (strcmp(test_case->filename, file_name) == 0)) {
 
-      return __cnn_test_case;
+      return test_case;
     }
   }
 
   return NULL;
 }
 
-static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
-                                         const char *restrict fn_name) {
+void _cnn_register_test_with_case(Test t, const char *restrict file_name,
+                                  const char *restrict fn_name) {
   TestCase *test_case = _cnn_get_current_case(file_name, fn_name);
 
   if (test_case) {
@@ -188,19 +192,79 @@ static void _cnn_register_test_with_case(Test t, const char *restrict file_name,
   }
 }
 
+static int _cnn_get_term_width() {
+  struct winsize w;
+
+  // Use ioctl to get terminal size
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+    return 40;
+  }
+
+  return w.ws_col;
+}
+
+static void _cnn_print_rule(char c, int width) {
+  char *arr = malloc(width + 1);
+  memset(arr, c, width);
+  arr[width] = '\0';
+
+  printf("%s%s%s\n", CNN_TERM_GRAY, arr, CNN_TERM_NC);
+
+  free(arr);
+}
+
+size_t strlen_no_ansi(const char *str) {
+  size_t length = 0;
+  char in_escape = 0;
+
+  for (const char *p = str; *p != '\0'; p++) {
+    if (*p == '\033' || *p == '\e') { // Start of an ANSI escape sequence
+      in_escape = 1;
+    }
+
+    if (in_escape) {
+      if (*p == 'm') { // End of ANSI escape sequence
+        in_escape = 0;
+      }
+    } else {
+      length++; // Count visible characters
+    }
+  }
+
+  return length;
+}
+
+static void _cnn_print_spaced_text(const char *lhs, const char *rhs, char sep,
+                                   int width) {
+  int w_l = strlen_no_ansi(lhs);
+  int w_r = strlen_no_ansi(rhs);
+  int padding = width - w_l - w_r;
+
+  char *padding_str = malloc(padding + 1);
+  padding_str[padding] = '\0';
+  memset(padding_str, sep, padding);
+
+  printf("%s%s%s\n", lhs, padding_str, rhs);
+
+  free(padding_str);
+}
+
 int run_tests() {
   clock_t t0 = clock();
 
-  const int width = 40;
+  const int width = _cnn_get_term_width();
+
   char now_str[20];
   _cnn_format_datetime_str(now_str);
-  printf("%s============================================================%s\n",
-         CNN_TERM_GRAY, CNN_TERM_NC);
-  printf("Catch99: Running %s%zu%s test cases           %s%s%s\n",
-         CNN_TERM_UNDERLINE, _cnn_num_test_cases, CNN_TERM_NC, CNN_TERM_GRAY,
-         now_str, CNN_TERM_NC);
-  printf("%s============================================================%s\n",
-         CNN_TERM_GRAY, CNN_TERM_NC);
+  _cnn_print_rule('=', width);
+
+  char title[128];
+  sprintf(title, "Catch99: Running %s%zu%s test cases", CNN_TERM_UNDERLINE,
+          _cnn_num_test_cases, CNN_TERM_NC);
+
+  _cnn_print_spaced_text(title, now_str, ' ', width);
+
+  _cnn_print_rule('=', width);
 
   char tests_failed = 0;
   char cases_failed = 0;
@@ -213,40 +277,35 @@ int run_tests() {
 
     char case_skipped = current_case->status == SKIPPED;
 
-    // Truncate description string
-    int desc_len = strlen(current_case->description);
-    char truncated_desc[width + 1];
-    memset(truncated_desc, 0, width + 1);
-    memcpy(truncated_desc, current_case->description,
-           desc_len < width ? desc_len : width);
-    truncated_desc[width] = '\0';
-
-    // Print intro string for this case
-    int diff = width - strlen(truncated_desc);
-
     // Different message formatting if skipped
     if (case_skipped) {
-      printf("%s[%3d/%3zu] %s%s%s %s(Skipped)%s %s\n", CNN_TERM_GRAY, i + 1,
-             _cnn_num_test_cases, CNN_TERM_STRIKE, truncated_desc, CNN_TERM_NC,
-             CNN_TERM_GRAY, CNN_TERM_NC, current_case->skip_message);
+      char skip_summary_text[1024];
+      sprintf(skip_summary_text, "%s[%3d/%3zu] %s%s%s %s%s", CNN_TERM_GRAY,
+              i + 1, _cnn_num_test_cases, CNN_TERM_STRIKE,
+              current_case->description, CNN_TERM_NC,
+              current_case->skip_message, CNN_TERM_GRAY);
 
-    } else {
-      printf("%s[%3d/%3zu]%s %s", CNN_TERM_GRAY, i + 1, _cnn_num_test_cases,
-             CNN_TERM_NC, truncated_desc);
-      for (int i = 0; i < diff; i++) {
-        printf("%s.%s", CNN_TERM_GRAY, CNN_TERM_NC);
-      }
-    }
+      char skip_text[64];
+      sprintf(skip_text, "SKIPPED%s", CNN_TERM_NC);
 
-    if (case_skipped) {
+      _cnn_print_spaced_text(skip_summary_text, skip_text, '.', width);
+
       continue;
     }
+
+    char case_summary_txt[1024];
+    sprintf(case_summary_txt, "%s[%3d/%3zu]%s %s%s", CNN_TERM_GRAY, i + 1,
+            _cnn_num_test_cases, CNN_TERM_NC, current_case->description,
+            CNN_TERM_GRAY);
+
+    char results_txt[1024];
+    char *p = results_txt;
 
     for (int t = 0; t < current_case->num_tests; t++) {
       Test test = current_case->tests[t];
 
       if (test.passed) {
-        printf("%s*%s", CNN_TERM_GREEN, CNN_TERM_NC);
+        p += sprintf(p, "%s*%s", CNN_TERM_GREEN, CNN_TERM_NC);
       } else {
         ++tests_failed;
 
@@ -256,12 +315,14 @@ int run_tests() {
           current_case->status = FAILED;
         }
 
-        printf("%sE%s", CNN_TERM_RED, CNN_TERM_NC);
+        p += printf(p, "%sE%s", CNN_TERM_RED, CNN_TERM_NC);
       }
     }
 
-    printf("\n");
+    _cnn_print_spaced_text(case_summary_txt, results_txt, '.', width);
   }
+
+  _cnn_print_rule('-', width);
 
   double dt = ((double)clock() - t0) / CLOCKS_PER_SEC;
   char elapsed_str[20];
@@ -272,9 +333,6 @@ int run_tests() {
            elapsed_str, CNN_TERM_NC);
     return 0;
   } else {
-    printf(
-        "%s-------------------------------------------------------------%s\n",
-        CNN_TERM_GRAY, CNN_TERM_NC);
 
     for (int i = 0; i < _cnn_num_test_cases; i++) {
       TestCase *current_case = &_cnn_test_cases[i];
@@ -306,9 +364,8 @@ int run_tests() {
         }
       }
 
-      printf("\n%s-------------------------------------------------------------"
-             "%s\n",
-             CNN_TERM_GRAY, CNN_TERM_NC);
+      printf("\n");
+      _cnn_print_rule('-', width);
     }
 
     printf("\n%d tests in %d cases %sfailed%s (%s elapsed)%s  \n", tests_failed,

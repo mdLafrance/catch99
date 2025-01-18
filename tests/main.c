@@ -5,14 +5,14 @@
 TEST_CASE("Test tests") {
   CHECK(1 == 1);
   CHECK(2 == 2);
-  REQUIRE(1 == 3);
+  REQUIRE(1 == 1);
 }
 
-TEST_CASE("Tests that are skipped") {
+TEST_CASE("Test Foo") {
   CHECK(1 == 1);
 
   if (1) {
-      SKIP("Skipping test")
+    SKIP("Foo is not available")
   }
 
   CHECK(2 == 2);

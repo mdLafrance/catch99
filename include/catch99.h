@@ -331,8 +331,17 @@ int run_tests() {
   _cnn_format_elapsed_str(dt, elapsed_str);
 
   if (!tests_failed) {
-    printf("\nAll tests %spassed %s%s%s\n", CNN_TERM_GREEN, CNN_TERM_GRAY,
-           elapsed_str, CNN_TERM_NC);
+
+    char lhs[128];
+    sprintf(lhs, "All tests %spassed%s", CNN_TERM_GREEN, CNN_TERM_GRAY);
+
+    char rhs[128];
+    sprintf(rhs, "%s(%s elapsed)%s", CNN_TERM_GRAY, elapsed_str, CNN_TERM_NC);
+
+    printf("\n");
+    _cnn_print_spaced_text(lhs, rhs, ' ', width);
+    printf("\n");
+
     return 0;
   } else {
 

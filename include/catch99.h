@@ -218,16 +218,16 @@ size_t strlen_no_ansi(const char *str) {
   char in_escape = 0;
 
   for (const char *p = str; *p != '\0'; p++) {
-    if (*p == '\033' || *p == '\e') { // Start of an ANSI escape sequence
+    if (*p == '\033' || *p == '\e') {
       in_escape = 1;
     }
 
     if (in_escape) {
-      if (*p == 'm') { // End of ANSI escape sequence
+      if (*p == 'm') {
         in_escape = 0;
       }
     } else {
-      length++; // Count visible characters
+      length++;
     }
   }
 

@@ -193,6 +193,9 @@ void _cnn_register_test_with_case(Test t, const char *restrict file_name,
 }
 
 static int _cnn_get_term_width() {
+#ifdef CATCH99_TERM_WIDTH
+  return CATCH99_TERM_WIDTH;
+#else
   struct winsize w;
 
   // Use ioctl to get terminal size
@@ -201,6 +204,7 @@ static int _cnn_get_term_width() {
   }
 
   return w.ws_col;
+#endif
 }
 
 static void _cnn_print_rule(char c, int width) {

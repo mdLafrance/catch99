@@ -37,6 +37,6 @@ Maybe I'll turn this into something more substantial in the future, but for now 
 
 ### TODO
 - [x] CHECK and REQUIRE
-- [ ] Skip clause
+- [x] Skip clause
 - [ ] Throws clauses
 - [ ] Benchmarking

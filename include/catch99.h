@@ -254,9 +254,11 @@ int run_tests() {
 
   const int width = _cnn_get_term_width();
 
+  _cnn_print_rule('=', width);
+
   char now_str[20];
   _cnn_format_datetime_str(now_str);
-  _cnn_print_rule('=', width);
+  sprintf(now_str, "%s%s%s", CNN_TERM_GRAY, now_str, CNN_TERM_NC);
 
   char title[128];
   sprintf(title, "Catch99: Running %s%zu%s test cases", CNN_TERM_UNDERLINE,

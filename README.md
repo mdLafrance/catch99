@@ -20,6 +20,14 @@ TEST_CASE("Test tests") {
   CHECK(2 == 2);
   REQUIRE(1 == 3);
 }
+
+TEST_CASE("Tests Foo") {
+  if (!FOO_IS_ENABLED) {
+    SKIP("Foo is not enabled");
+  }
+
+  REQUIRE(Foo() == "foo")
+}
 ```
 
 That's it! In the TU with `CATCH99_MAIN` defined, a `main()` function is automatically generated that discovers, runs, and reports on all tests in the source.  

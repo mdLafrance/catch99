@@ -256,7 +256,7 @@ int run_tests() {
 
   _cnn_print_rule('=', width);
 
-  char now_str[20];
+  char now_str[64];
   _cnn_format_datetime_str(now_str);
   sprintf(now_str, "%s%s%s", CNN_TERM_GRAY, now_str, CNN_TERM_NC);
 

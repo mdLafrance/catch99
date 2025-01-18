@@ -315,7 +315,7 @@ int run_tests() {
           current_case->status = FAILED;
         }
 
-        p += printf(p, "%sE%s", CNN_TERM_RED, CNN_TERM_NC);
+        p += sprintf(p, "%sF%s", CNN_TERM_RED, CNN_TERM_NC);
       }
     }
 

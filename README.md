@@ -26,6 +26,14 @@ That's it! In the TU with `CATCH99_MAIN` defined, a `main()` function is automat
 
 See the included [cmake](./CMakeLists.txt) file for a recipe on creating a test binary to run.
 
+### Configuration
+Catch99 will respect the following defines:
+
+- `CATCH99_MAX_TEST_CASES` - the maximum number of test cases that can be defined. Defaults to `512`.
+- `CATCH99_MAX_TESTS` - the maximum number of tests that can be defined per test case. Defaults to `128`.
+- `CATCH99_NO_COLORS` - if defined, no colors will be used in the output.
+- `CATCH99_TERM_WIDTH` - if defined (as a number), catch will use this value as the terminal width. Otherwise, the terminal width will be queried at runtime with ioctl.
+
 ### A note about implementation
 Single header libraries just dont make sense to implement in C. You can do more easily in C++ because:
 - c++ inlines dont require external linkage
@@ -38,5 +46,6 @@ Maybe I'll turn this into something more substantial in the future, but for now 
 ### TODO
 - [x] CHECK and REQUIRE
 - [x] Skip clause
+- [x] Pretty printing
 - [ ] Throws clauses
 - [ ] Benchmarking

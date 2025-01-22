@@ -34,11 +34,11 @@
 #include <unistd.h>
 
 #ifndef CATCH99_MAX_TEST_CASES
-#define CATCH99_MAX_TEST_CASES 512
+#define CATCH99_MAX_TEST_CASES 64
 #endif
 
-#ifndef CATCH99_MAX_TESTS
-#define CATCH99_MAX_TESTS 128
+#ifndef CATCH99_MAX_TESTS_PER_CASE
+#define CATCH99_MAX_TESTS_PER_CASE 64
 #endif
 
 #define CNN__STR(x) #x
@@ -50,26 +50,12 @@
 #define CNN__CASE_NAME() CNN__MAKE_FN_NAME(__LINE__)
 #define CNN__REGISTER_CASE_FN() CNN__MAKE_REG_FN_NAME(__LINE__)
 
-#ifdef CATCH99_NO_COLORS
-#define CNN__TERM_RED ""
-#define CNN__TERM_GREEN ""
-#define CNN__TERM_GRAY ""
-#define CNN__TERM_NC ""
-#define CNN__TERM_UNDERLINE ""
-#define CNN__TERM_BOLD ""
-#define CNN__TERM_STRIKE ""
-#else
-#define CNN__TERM_RED "\033[31m"
-#define CNN__TERM_GREEN "\033[32m"
-#define CNN__TERM_GRAY "\033[90m"
-#define CNN__TERM_NC "\033[0m"
-#define CNN__TERM_UNDERLINE "\033[4m"
-#define CNN__TERM_BOLD "\033[1m"
-#define CNN__TERM_STRIKE "\e[9m"
-#endif
-
 typedef enum { REQUIRE, CHECK } CNN__TestType;
 typedef enum { PASSED, FAILED, SKIPPED } CNN__CaseStatus;
+
+// NOTE: No these structs are not well packed and yes the cache locality is f'd
+// However, since we will only ever loop through the hundreds/thousands of
+// test cases 1 time it really doesnt matter.
 
 /// A single test. Remembers the invocation details and outcome for report
 /// later.
@@ -91,14 +77,14 @@ typedef struct CNN__TestCase {
   const char *case_fn_name;
   void (*case_fn)(void);
   size_t num_tests;
-  CNN__Test tests[CATCH99_MAX_TESTS];
+  CNN__Test tests[CATCH99_MAX_TESTS_PER_CASE];
 } CNN__TestCase;
 
 CNN__TestCase *_cnn_get_current_case(const char *filename, const char *fn_name);
 void _cnn_register_case(CNN__TestCase test_case);
 void _cnn_register_test_with_case(CNN__Test t, const char *file_name,
                                   const char *fn_name);
-static int _cnn_get_term_width();
+uint32_t _cnn_get_term_width();
 
 #define TEST_CASE(desc)                                                        \
   static void CNN__CASE_NAME()(void);                                          \
@@ -148,6 +134,24 @@ static int _cnn_get_term_width();
 #include <string.h>
 #include <time.h>
 
+#ifdef CATCH99_NO_COLORS
+#define CNN__TERM_RED ""
+#define CNN__TERM_GREEN ""
+#define CNN__TERM_GRAY ""
+#define CNN__TERM_NC ""
+#define CNN__TERM_UNDERLINE ""
+#define CNN__TERM_BOLD ""
+#define CNN__TERM_STRIKE ""
+#else
+#define CNN__TERM_RED "\033[31m"
+#define CNN__TERM_GREEN "\033[32m"
+#define CNN__TERM_GRAY "\033[90m"
+#define CNN__TERM_NC "\033[0m"
+#define CNN__TERM_UNDERLINE "\033[4m"
+#define CNN__TERM_BOLD "\033[1m"
+#define CNN__TERM_STRIKE "\e[9m"
+#endif
+
 typedef struct CNN__Context {
   uint32_t num_cases;
   uint32_t num_tests;
@@ -181,7 +185,7 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
 }
 
 CNN__TestCase *_cnn_get_current_case(const char *restrict file_name,
-                                            const char *restrict fn_name) {
+                                     const char *restrict fn_name) {
   CNN__Context *ctx = _cnn_get_context();
   for (int i = 0; i < ctx->num_cases; i++) {
     CNN__TestCase *test_case = &ctx->test_cases[i];
@@ -210,7 +214,7 @@ void _cnn_register_test_with_case(CNN__Test t, const char *restrict file_name,
   CNN__TestCase *test_case = _cnn_get_current_case(file_name, fn_name);
 
   if (test_case) {
-    if (test_case->num_tests >= CATCH99_MAX_TESTS) {
+    if (test_case->num_tests >= CATCH99_MAX_TESTS_PER_CASE) {
       fprintf(stderr, "MAXIMUM TESTS EXCEEDED FOR CASE %s\n",
               test_case->description);
       exit(1);
@@ -219,7 +223,7 @@ void _cnn_register_test_with_case(CNN__Test t, const char *restrict file_name,
   }
 }
 
-static int _cnn_get_term_width() {
+uint32_t _cnn_get_term_width() {
 #ifdef CATCH99_TERM_WIDTH
   return CATCH99_TERM_WIDTH;
 #else

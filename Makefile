@@ -24,7 +24,7 @@ compile:
 # Rule to run the generated binary
 test:
 	@echo "Running the generated binary."
-	$(TEST_TARGET) --debug
+	$(TEST_TARGET)
 
 .PHONY: all build clean compile test
 

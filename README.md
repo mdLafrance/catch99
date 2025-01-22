@@ -3,7 +3,9 @@
 
 This library aims to reimplement some of the core dx of the excellent Catch2 unit testing framework for C99.
 
-This is not a NASA-grade testing framework - I was writing something else in C and just wanted to test with that was familiar and had pretty colors.
+This is not a NASA-grade unit test framework - I was writing something else in C and just wanted to test with something that was familiar and had pretty colors.
+
+![20250121_22h30m11s_grim](https://github.com/user-attachments/assets/7e79e87d-c98e-4f80-b922-587ce066aeb8)
 
 ## Usage
 This is a **single header file** of C99. Just put it somewhere it can be included.

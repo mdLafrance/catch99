@@ -94,27 +94,12 @@ typedef struct CNN__TestCase {
   CNN__Test tests[CATCH99_MAX_TESTS];
 } CNN__TestCase;
 
-typedef struct CNN__Context {
-  uint32_t num_cases;
-  uint32_t num_tests;
-  uint32_t cases_failed;
-  uint32_t cases_skipped;
-  CNN__TestCase test_cases[CATCH99_MAX_TEST_CASES];
-} CNN__Context;
-
-// =================== Forward declares ================= //
-
-CNN__Context *_cnn_get_context();
-static void _cnn_format_datetime_str(char *out_str);
-static void _cnn_format_elapsed_string(double dt, char *out_str);
-static CNN__TestCase *_cnn_get_current_case(const char *filename,
-                                            const char *fn_name);
+CNN__TestCase *_cnn_get_current_case(const char *filename, const char *fn_name);
 void _cnn_register_case(CNN__TestCase test_case);
 void _cnn_register_test_with_case(CNN__Test t, const char *file_name,
                                   const char *fn_name);
 static int _cnn_get_term_width();
 
-// =================== Macros =========================== //
 #define TEST_CASE(desc)                                                        \
   static void CNN__CASE_NAME()(void);                                          \
   __attribute__((constructor)) static void CNN__REGISTER_CASE_FN()(void) {     \
@@ -159,13 +144,20 @@ static int _cnn_get_term_width();
     return;                                                                    \
   } while (0);
 
-// =================== Guarded impls ==================== //
-
 #ifdef CATCH99_MAIN
 #include <string.h>
 #include <time.h>
 
-CNN__Context *_cnn_get_context() {
+typedef struct CNN__Context {
+  uint32_t num_cases;
+  uint32_t num_tests;
+  uint32_t cases_failed;
+  uint32_t cases_skipped;
+  // NOTE:
+  CNN__TestCase test_cases[CATCH99_MAX_TEST_CASES];
+} CNN__Context;
+
+static CNN__Context *_cnn_get_context() {
   static CNN__Context ctx = {};
 
   return &ctx;
@@ -188,7 +180,7 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
   sprintf(out_str, "%d:%02d:%02d", hours, minutes, seconds);
 }
 
-static CNN__TestCase *_cnn_get_current_case(const char *restrict file_name,
+CNN__TestCase *_cnn_get_current_case(const char *restrict file_name,
                                             const char *restrict fn_name) {
   CNN__Context *ctx = _cnn_get_context();
   for (int i = 0; i < ctx->num_cases; i++) {
@@ -252,7 +244,7 @@ static void _cnn_print_rule(char c, int width) {
   free(arr);
 }
 
-size_t strlen_no_ansi(const char *str) {
+static size_t strlen_no_ansi(const char *str) {
   size_t length = 0;
   char in_escape = 0;
 
@@ -288,7 +280,7 @@ static void _cnn_print_spaced_text(const char *lhs, const char *rhs, char sep,
   free(padding_str);
 }
 
-int run_tests() {
+static int _cnn_run_tests() {
   clock_t t0 = clock();
 
   CNN__Context *ctx = _cnn_get_context();
@@ -435,7 +427,7 @@ int run_tests() {
   }
 }
 
-int main(void) { return run_tests(); }
+int main(void) { return _cnn_run_tests(); }
 #endif // CNN__TEST_MAIN
 
 #endif // CATCH99

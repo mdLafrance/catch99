@@ -50,6 +50,10 @@
 #define CNN__CASE_NAME() CNN__MAKE_FN_NAME(__LINE__)
 #define CNN__REGISTER_CASE_FN() CNN__MAKE_REG_FN_NAME(__LINE__)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum { REQUIRE, CHECK } CNN__TestType;
 typedef enum { PASSED, FAILED, SKIPPED } CNN__CaseStatus;
 
@@ -184,8 +188,8 @@ static void _cnn_format_elapsed_str(double dt, char out_str[20]) {
   sprintf(out_str, "%d:%02d:%02d", hours, minutes, seconds);
 }
 
-CNN__TestCase *_cnn_get_current_case(const char *restrict file_name,
-                                     const char *restrict fn_name) {
+CNN__TestCase *_cnn_get_current_case(const char *file_name,
+                                     const char *fn_name) {
   CNN__Context *ctx = _cnn_get_context();
   for (int i = 0; i < ctx->num_cases; i++) {
     CNN__TestCase *test_case = &ctx->test_cases[i];
@@ -209,8 +213,8 @@ void _cnn_register_case(CNN__TestCase test_case) {
   *(ctx->test_cases + ctx->num_cases++) = test_case;
 }
 
-void _cnn_register_test_with_case(CNN__Test t, const char *restrict file_name,
-                                  const char *restrict fn_name) {
+void _cnn_register_test_with_case(CNN__Test t, const char *file_name,
+                                  const char *fn_name) {
   CNN__TestCase *test_case = _cnn_get_current_case(file_name, fn_name);
 
   if (test_case) {
@@ -239,7 +243,7 @@ uint32_t _cnn_get_term_width() {
 }
 
 static void _cnn_print_rule(char c, int width) {
-  char *arr = malloc(width + 1);
+  char *arr = (char *)malloc(width + 1);
   memset(arr, c, width);
   arr[width] = '\0';
 
@@ -275,7 +279,7 @@ static void _cnn_print_spaced_text(const char *lhs, const char *rhs, char sep,
   int w_r = strlen_no_ansi(rhs);
   int padding = width - w_l - w_r;
 
-  char *padding_str = malloc(padding + 1);
+  char *padding_str = (char *)malloc(padding + 1);
   padding_str[padding] = '\0';
   memset(padding_str, sep, padding);
 
@@ -293,9 +297,10 @@ static int _cnn_run_tests() {
 
   _cnn_print_rule('=', width);
 
+  char datetime_str[32];
+  _cnn_format_datetime_str(datetime_str);
   char now_str[64];
-  _cnn_format_datetime_str(now_str);
-  sprintf(now_str, "%s%s%s", CNN__TERM_GRAY, now_str, CNN__TERM_NC);
+  sprintf(now_str, "%s%s%s", CNN__TERM_GRAY, datetime_str, CNN__TERM_NC);
 
   char title[128];
   sprintf(title, "Catch99: Running %s%u%s test cases", CNN__TERM_UNDERLINE,
@@ -307,6 +312,12 @@ static int _cnn_run_tests() {
 
   char tests_failed = 0;
   char cases_failed = 0;
+
+  // No tests, just exit
+  if (ctx->num_cases == 0) {
+    printf("\nNo tests found\n");
+    return 0;
+  }
 
   // Iterate over cases
   for (int i = 0; i < ctx->num_cases; i++) {
@@ -433,5 +444,9 @@ static int _cnn_run_tests() {
 
 int main(void) { return _cnn_run_tests(); }
 #endif // CNN__TEST_MAIN
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CATCH99

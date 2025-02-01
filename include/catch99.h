@@ -50,6 +50,9 @@
 #define CNN__CASE_NAME() CNN__MAKE_FN_NAME(__LINE__)
 #define CNN__REGISTER_CASE_FN() CNN__MAKE_REG_FN_NAME(__LINE__)
 
+#define CNN__RESULT_VAR_NAME_0(line) CNN__CONCAT(CNN__bench_result_, line)
+#define CNN__RESULT_VAR_NAME() CNN__RESULT_VAR_NAME_0(__LINE__)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -57,12 +60,6 @@ extern "C" {
 typedef enum { REQUIRE, CHECK } CNN__TestType;
 typedef enum { PASSED, FAILED, SKIPPED } CNN__CaseStatus;
 
-// NOTE: No these structs are not well packed and yes the cache locality is f'd
-// However, since we will only ever loop through the hundreds/thousands of
-// test cases 1 time it really doesnt matter.
-
-/// A single test. Remembers the invocation details and outcome for report
-/// later.
 typedef struct CNN__Test {
   uint32_t lineno;
   const char *text;
@@ -70,8 +67,6 @@ typedef struct CNN__Test {
   CNN__TestType test_type;
 } CNN__Test;
 
-/// A single test case. A test case organizes multiple tests that are logically
-/// related.
 typedef struct CNN__TestCase {
   CNN__CaseStatus status;
   uint32_t lineno;
@@ -133,6 +128,15 @@ uint32_t _cnn_get_term_width();
                                                                                \
     return;                                                                    \
   } while (0);
+
+#define BENCHMARK(msg) for (int i = 0; i < 5; i++)
+
+#define RESULT(x)                                                              \
+  ({                                                                           \
+    __typeof__(x) CNN__RESULT_VAR_NAME() = (x);                                \
+    __asm__ __volatile__("" : "+r"(CNN__RESULT_VAR_NAME()));                   \
+    CNN__RESULT_VAR_NAME();                                                    \
+  })
 
 #ifdef CATCH99_MAIN
 #include <string.h>

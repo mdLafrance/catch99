@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#ifndef CATCH99
-#define CATCH99
+#ifndef __CATCH99_H__
+#define __CATCH99_H__
 
 #include <assert.h>
 #include <stddef.h>
@@ -453,4 +453,4 @@ int main(void) { return _cnn_run_tests(); }
 }
 #endif
 
-#endif // CATCH99
+#endif // __CATCH99_H__
